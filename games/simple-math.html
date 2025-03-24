@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>趣味加减法 - 趣味数学乐园</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="game-container">
+            <div class="game-header">
+                <h1 class="game-title">趣味加减法</h1>
+                <button class="home-button" onclick="location.href='../index.html'">返回首页</button>
+            </div>
+            
+            <p class="game-description">计算下面的题目，然后选择正确的答案！</p>
+            
+            <div class="score-display">得分: <span id="score">0</span></div>
+            
+            <div id="game-area" class="game-area">
+                <div id="question-display" class="math-display">3 + 2 = ?</div>
+                <div id="options-container" class="options-container">
+                    <button class="button option">4</button>
+                    <button class="button option">5</button>
+                    <button class="button option">6</button>
+                    <button class="button option">7</button>
+                </div>
+            </div>
+            
+            <div class="game-controls">
+                <button id="next-btn" class="button">下一题</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 游戏变量
+            let score = 0;
+            let currentQuestion = {};
+            
+            // DOM元素
+            const questionDisplay = document.getElementById('question-display');
+            const optionsContainer = document.getElementById('options-container');
+            const scoreDisplay = document.getElementById('score');
+            const nextButton = document.getElementById('next-btn');
+            
+            // 隐藏下一题按钮
+            nextButton.style.display = 'none';
+            
+            // 生成随机数
+            function getRandomNumber(min, max) {
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            }
+            
+            // 生成随机加减法题目
+            function generateQuestion() {
+                const operations = ['+', '-'];
+                const operation = operations[Math.floor(Math.random() * operations.length)];
+                
+                let num1, num2, answer;
+                
+                if (operation === '+') {
+                    // 加法题目: 数字范围1-10
+                    num1 = getRandomNumber(1, 10);
+                    num2 = getRandomNumber(1, 10);
+                    answer = num1 + num2;
+                } else {
+                    // 减法题目: 确保结果为正数
+                    num1 = getRandomNumber(1, 10);
+                    num2 = getRandomNumber(1, num1); // 确保num2 <= num1
+                    answer = num1 - num2;
+                }
+                
+                // 生成错误选项 (不重复)
+                const wrongAnswers = new Set();
+                while (wrongAnswers.size < 3) {
+                    // 生成与正确答案相差不大的错误答案
+                    const wrongAnswer = getRandomNumber(
+                        Math.max(1, answer - 3), 
+                        answer + 3
+                    );
+                    if (wrongAnswer !== answer) {
+                        wrongAnswers.add(wrongAnswer);
+                    }
+                }
+                
+                return {
+                    question: `${num1} ${operation} ${num2} = ?`,
+                    answer: answer,
+                    options: [...wrongAnswers, answer]
+                };
+            }
+            
+            // 加载问题
+            function loadQuestion() {
+                // 生成新问题
+                currentQuestion = generateQuestion();
+                
+                // 显示问题
+                questionDisplay.textContent = currentQuestion.question;
+                
+                // 清空选项容器
+                optionsContainer.innerHTML = '';
+                
+                // 打乱选项顺序
+                const shuffledOptions = [...currentQuestion.options];
+                shuffleArray(shuffledOptions);
+                
+                // 添加选项按钮
+                shuffledOptions.forEach(option => {
+                    const button = document.createElement('button');
+                    button.className = 'button option';
+                    button.textContent = option;
+                    button.addEventListener('click', () => checkAnswer(option));
+                    optionsContainer.appendChild(button);
+                });
+                
+                // 隐藏下一题按钮
+                nextButton.style.display = 'none';
+            }
+            
+            // 检查答案
+            function checkAnswer(selectedOption) {
+                const isCorrect = parseInt(selectedOption) === currentQuestion.answer;
+                
+                // 禁用所有选项
+                const optionButtons = document.querySelectorAll('.option');
+                optionButtons.forEach(button => {
+                    button.disabled = true;
+                    
+                    // 标记正确和错误的选项
+                    if (parseInt(button.textContent) === currentQuestion.answer) {
+                        button.classList.add('correct');
+                    } else if (button.textContent === selectedOption && !isCorrect) {
+                        button.classList.add('wrong');
+                    }
+                });
+                
+                // 更新分数
+                if (isCorrect) {
+                    score++;
+                    scoreDisplay.textContent = score;
+                    playSound('correct');
+                    showFeedback(true);
+                } else {
+                    playSound('wrong');
+                    showFeedback(false);
+                }
+                
+                // 显示下一题按钮
+                nextButton.style.display = 'block';
+            }
+            
+            // 下一题
+            nextButton.addEventListener('click', () => {
+                loadQuestion();
+                playSound('click');
+            });
+            
+            // 打乱数组顺序
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+            
+            // 开始游戏
+            loadQuestion();
+        });
+    </script>
+    
+    <style>
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 30px 0;
+        }
+        
+        .game-description {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: #666;
+        }
+        
+        .math-display {
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: #ff7b54;
+            margin-bottom: 30px;
+            background-color: #f9f7f0;
+            padding: 30px 50px;
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .options-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        .option {
+            font-size: 1.8rem;
+            padding: 15px 0;
+        }
+        
+        .game-controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        #next-btn {
+            background-color: #ff7b54;
+            font-size: 1.2rem;
+            padding: 12px 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .math-display {
+                font-size: 2.5rem;
+                padding: 20px 30px;
+            }
+            
+            .options-container {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            
+            .option {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</body>
+</html> 

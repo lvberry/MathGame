@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>记忆翻牌 - 趣味数学乐园</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="game-container">
+            <div class="game-header">
+                <h1 class="game-title">记忆翻牌</h1>
+                <button class="home-button" onclick="location.href='../index.html'">返回首页</button>
+            </div>
+            
+            <p class="game-description">翻开卡片，找到配对的图案！</p>
+            
+            <div class="score-display">
+                <span>已配对: <span id="pairs">0</span> / 6</span>
+                <span>尝试次数: <span id="attempts">0</span></span>
+            </div>
+            
+            <div id="memory-game" class="memory-grid">
+                <!-- 卡片将通过JavaScript动态生成 -->
+            </div>
+            
+            <div class="game-controls">
+                <button id="restart-btn" class="button">重新开始</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 游戏变量
+            let pairs = 0;
+            let attempts = 0;
+            let flippedCards = [];
+            let matchedPairs = [];
+            let canFlip = true;
+            
+            // 卡片图案
+            const symbols = [
+                '🐱', '🐶', '🐭', '🐰', '🦊', '🐻'
+            ];
+            
+            // 创建卡片数组 (每个符号出现两次)
+            let cards = [];
+            symbols.forEach(symbol => {
+                cards.push({ symbol: symbol, id: Math.random() });
+                cards.push({ symbol: symbol, id: Math.random() });
+            });
+            
+            // DOM元素
+            const memoryGrid = document.getElementById('memory-game');
+            const pairsDisplay = document.getElementById('pairs');
+            const attemptsDisplay = document.getElementById('attempts');
+            const restartButton = document.getElementById('restart-btn');
+            
+            // 初始化游戏
+            function initGame() {
+                // 重置游戏状态
+                pairs = 0;
+                attempts = 0;
+                flippedCards = [];
+                matchedPairs = [];
+                canFlip = true;
+                
+                // 更新显示
+                pairsDisplay.textContent = pairs;
+                attemptsDisplay.textContent = attempts;
+                
+                // 洗牌
+                shuffleArray(cards);
+                
+                // 清空网格
+                memoryGrid.innerHTML = '';
+                
+                // 创建卡片
+                cards.forEach(card => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'memory-card';
+                    cardElement.dataset.id = card.id;
+                    cardElement.dataset.symbol = card.symbol;
+                    
+                    // 创建卡片前面和后面
+                    cardElement.innerHTML = `
+                        <div class="card-front">?</div>
+                        <div class="card-back">${card.symbol}</div>
+                    `;
+                    
+                    // 添加点击事件
+                    cardElement.addEventListener('click', () => flipCard(cardElement));
+                    
+                    // 添加到网格
+                    memoryGrid.appendChild(cardElement);
+                });
+            }
+            
+            // 翻转卡片
+            function flipCard(card) {
+                // 检查是否可以翻转
+                if (!canFlip || flippedCards.includes(card) || matchedPairs.includes(card.dataset.symbol)) {
+                    return;
+                }
+                
+                // 翻转卡片
+                card.classList.add('flipped');
+                playSound('click');
+                
+                // 添加到已翻转卡片
+                flippedCards.push(card);
+                
+                // 如果翻转了两张卡片，检查是否匹配
+                if (flippedCards.length === 2) {
+                    attempts++;
+                    attemptsDisplay.textContent = attempts;
+                    
+                    const firstCard = flippedCards[0];
+                    const secondCard = flippedCards[1];
+                    
+                    // 检查是否匹配
+                    if (firstCard.dataset.symbol === secondCard.dataset.symbol) {
+                        // 匹配成功
+                        pairs++;
+                        pairsDisplay.textContent = pairs;
+                        matchedPairs.push(firstCard.dataset.symbol);
+                        
+                        flippedCards = [];
+                        
+                        playSound('correct');
+                        showFeedback(true);
+                        
+                        // 检查游戏是否结束
+                        if (pairs === symbols.length) {
+                            setTimeout(() => {
+                                playSound('complete');
+                                alert(`恭喜！你用了 ${attempts} 次尝试完成了游戏！`);
+                            }, 500);
+                        }
+                    } else {
+                        // 不匹配，翻回去
+                        canFlip = false;
+                        
+                        setTimeout(() => {
+                            firstCard.classList.remove('flipped');
+                            secondCard.classList.remove('flipped');
+                            flippedCards = [];
+                            canFlip = true;
+                        }, 1000);
+                        
+                        playSound('wrong');
+                    }
+                }
+            }
+            
+            // 重新开始游戏
+            restartButton.addEventListener('click', () => {
+                initGame();
+                playSound('click');
+            });
+            
+            // 打乱数组顺序
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+            
+            // 开始游戏
+            initGame();
+        });
+    </script>
+    
+    <style>
+        .score-display {
+            display: flex;
+            justify-content: space-between;
+            max-width: 400px;
+            margin: 0 auto 20px;
+            background-color: #f9f7f0;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-weight: bold;
+        }
+        
+        .memory-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            max-width: 500px;
+            margin: 0 auto 30px;
+        }
+        
+        .memory-card {
+            aspect-ratio: 1 / 1;
+            background-color: transparent;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+        
+        .memory-card .card-front,
+        .memory-card .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backface-visibility: hidden;
+            transition: transform 0.6s;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .memory-card .card-front {
+            background-color: #ff7b54;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        .memory-card .card-back {
+            background-color: white;
+            font-size: 2.5rem;
+            transform: rotateY(180deg);
+        }
+        
+        .memory-card {
+            position: relative;
+            background-color: transparent;
+            width: 100%;
+            height: 0;
+            padding-bottom: 100%;
+            transform-style: preserve-3d;
+        }
+        
+        .memory-card .card-front,
+        .memory-card .card-back {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .memory-card.flipped .card-front {
+            transform: rotateY(180deg);
+        }
+        
+        .memory-card.flipped .card-back {
+            transform: rotateY(0);
+        }
+        
+        .game-controls {
+            display: flex;
+            justify-content: center;
+        }
+        
+        #restart-btn {
+            background-color: #ff7b54;
+            font-size: 1.2rem;
+            padding: 12px 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .memory-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+            }
+            
+            .memory-card .card-front {
+                font-size: 1.5rem;
+            }
+            
+            .memory-card .card-back {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</body>
+</html> 
