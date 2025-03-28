@@ -17,7 +17,11 @@
             
             <p class="game-description">计算下面的题目，然后选择正确的答案！</p>
             
-            <div class="score-display">得分: <span id="score">0</span></div>
+            <div class="score-panel">
+                <div class="score-display">当前得分: <span id="score">0</span></div>
+                <div class="score-display">最高分: <span id="high-score">0</span></div>
+                <div class="score-display">游戏次数: <span id="games-played">0</span></div>
+            </div>
             
             <div id="game-area" class="game-area">
                 <div id="question-display" class="math-display">3 + 2 = ?</div>
@@ -31,6 +35,14 @@
             
             <div class="game-controls">
                 <button id="next-btn" class="button">下一题</button>
+                <button id="end-game-btn" class="button">结束游戏</button>
+            </div>
+            
+            <div id="game-complete" class="game-complete" style="display: none;">
+                <h2>游戏结束</h2>
+                <p>你的得分: <span id="final-score">0</span></p>
+                <p id="score-message">继续努力！</p>
+                <button id="restart-btn" class="button">再玩一次</button>
             </div>
         </div>
     </div>
@@ -38,15 +50,35 @@
     <script src="../js/main.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // 游戏ID，用于本地存储
+            const GAME_ID = 'simple-math';
+            
             // 游戏变量
             let score = 0;
             let currentQuestion = {};
+            let questionsAnswered = 0;
+            const QUESTIONS_PER_GAME = 10; // 每局游戏的题目数量
+            
+            // 加载历史数据
+            let highScore = getGameHighScore(GAME_ID);
+            let gamesPlayed = getGamesPlayed(GAME_ID);
             
             // DOM元素
             const questionDisplay = document.getElementById('question-display');
             const optionsContainer = document.getElementById('options-container');
             const scoreDisplay = document.getElementById('score');
+            const highScoreDisplay = document.getElementById('high-score');
+            const gamesPlayedDisplay = document.getElementById('games-played');
             const nextButton = document.getElementById('next-btn');
+            const endGameButton = document.getElementById('end-game-btn');
+            const gameCompleteDiv = document.getElementById('game-complete');
+            const finalScoreDisplay = document.getElementById('final-score');
+            const scoreMessage = document.getElementById('score-message');
+            const restartButton = document.getElementById('restart-btn');
+            
+            // 初始化状态显示
+            highScoreDisplay.textContent = highScore;
+            gamesPlayedDisplay.textContent = gamesPlayed;
             
             // 隐藏下一题按钮
             nextButton.style.display = 'none';
@@ -93,6 +125,18 @@
                     answer: answer,
                     options: [...wrongAnswers, answer]
                 };
+            }
+            
+            // 初始化游戏
+            function setupGame() {
+                // 重置游戏状态
+                score = 0;
+                questionsAnswered = 0;
+                scoreDisplay.textContent = score;
+                gameCompleteDiv.style.display = 'none';
+                
+                // 加载第一个问题
+                loadQuestion();
             }
             
             // 加载问题
@@ -151,13 +195,68 @@
                     showFeedback(false);
                 }
                 
-                // 显示下一题按钮
-                nextButton.style.display = 'block';
+                // 增加已回答问题数
+                questionsAnswered++;
+                
+                // 检查是否达到每局的题目数量
+                if (questionsAnswered >= QUESTIONS_PER_GAME) {
+                    // 游戏结束
+                    endGame();
+                } else {
+                    // 显示下一题按钮
+                    nextButton.style.display = 'block';
+                }
             }
             
             // 下一题
             nextButton.addEventListener('click', () => {
                 loadQuestion();
+                playSound('click');
+            });
+            
+            // 手动结束游戏
+            endGameButton.addEventListener('click', () => {
+                if (questionsAnswered > 0) {  // 至少回答了一个问题
+                    endGame();
+                    playSound('click');
+                } else {
+                    alert('请先回答至少一个问题！');
+                }
+            });
+            
+            // 结束游戏
+            function endGame() {
+                // 记录游戏次数
+                gamesPlayed = recordGamePlayed(GAME_ID);
+                gamesPlayedDisplay.textContent = gamesPlayed;
+                
+                // 保存分数并检查是否是新的最高分
+                const isNewHighScore = saveGameScore(GAME_ID, score);
+                if (isNewHighScore) {
+                    highScore = score;
+                    highScoreDisplay.textContent = highScore;
+                }
+                
+                // 显示最终得分
+                finalScoreDisplay.textContent = score;
+                
+                // 根据得分设置消息
+                if (score === QUESTIONS_PER_GAME) {
+                    scoreMessage.textContent = "太棒了！你全部答对了！";
+                    playSound('complete');
+                } else if (score >= QUESTIONS_PER_GAME * 0.7) {
+                    scoreMessage.textContent = "做得很好！继续努力！";
+                } else {
+                    scoreMessage.textContent = "加油，再试一次，你可以做得更好！";
+                }
+                
+                // 显示游戏结束界面
+                gameCompleteDiv.style.display = 'block';
+            }
+            
+            // 重新开始游戏
+            restartButton.addEventListener('click', () => {
+                setupGame();
                 playSound('click');
             });
             
@@ -171,7 +270,7 @@
             }
             
             // 开始游戏
-            loadQuestion();
+            setupGame();
         });
     </script>
     
@@ -188,6 +287,28 @@
             font-size: 1.2rem;
             margin-bottom: 20px;
             color: #666;
+        }
+        
+        .score-panel {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto 20px;
+        }
+        
+        .score-display {
+            background-color: #f9f7f0;
+            padding: 10px 15px;
+            border-radius: 50px;
+            margin: 5px;
+            flex: 1;
+            text-align: center;
+            font-weight: bold;
+            color: #666;
+            min-width: 140px;
         }
         
         .math-display {
@@ -221,12 +342,44 @@
             display: flex;
             justify-content: center;
             margin-top: 30px;
+            gap: 15px;
         }
         
-        #next-btn {
+        #next-btn, #end-game-btn {
             background-color: #ff7b54;
             font-size: 1.2rem;
             padding: 12px 30px;
+        }
+        
+        #end-game-btn {
+            background-color: #e67e22;
+        }
+        
+        .game-complete {
+            background-color: #f9f7f0;
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .game-complete h2 {
+            color: #ff7b54;
+            margin-bottom: 20px;
+        }
+        
+        #restart-btn {
+            background-color: #ff7b54;
+            font-size: 1.2rem;
+            padding: 12px 30px;
+            margin-top: 20px;
+        }
+        
+        #final-score {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ff7b54;
         }
         
         @media (max-width: 768px) {
@@ -242,6 +395,25 @@
             
             .option {
                 font-size: 1.5rem;
+            }
+            
+            .score-panel {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .score-display {
+                margin-bottom: 10px;
+                width: 100%;
+            }
+            
+            .game-controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            #next-btn, #end-game-btn {
+                width: 100%;
             }
         }
     </style>

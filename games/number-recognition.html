@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>认识数字 - 趣味数学乐园</title>
+    <title>数数 - 趣味数学乐园</title>
     <link rel="stylesheet" href="../css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600&display=swap" rel="stylesheet">
 </head>
@@ -11,16 +11,20 @@
     <div class="container">
         <div class="game-container">
             <div class="game-header">
-                <h1 class="game-title">认识数字</h1>
+                <h1 class="game-title">数数</h1>
                 <button class="home-button" onclick="location.href='../index.html'">返回首页</button>
             </div>
             
-            <p class="game-description">看一看下面的数字，然后点击正确的单词！</p>
+            <p class="game-description">数一数有多少个苹果，然后选择正确的数量！</p>
             
-            <div class="score-display">得分: <span id="score">0</span></div>
+            <div class="score-panel">
+                <div class="score-display">当前得分: <span id="score">0</span></div>
+                <div class="score-display">最高分: <span id="high-score">0</span></div>
+                <div class="score-display">游戏次数: <span id="games-played">0</span></div>
+            </div>
             
             <div id="game-area" class="game-area">
-                <div id="number-display" class="number-display">5</div>
+                <div id="apples-container" class="apples-container"></div>
                 <div id="options-container" class="options-container">
                     <button class="button option">三</button>
                     <button class="button option">五</button>
@@ -29,8 +33,19 @@
                 </div>
             </div>
             
-            <div class="game-controls">
-                <button id="next-btn" class="button">下一题</button>
+            <div class="navigation-controls">
+                <button id="prev-btn" class="button nav-button" disabled>上一题</button>
+                <div class="question-indicator">
+                    题目: <span id="current-question">1</span> / <span id="total-questions">10</span>
+                </div>
+                <button id="next-btn" class="button nav-button" disabled>下一题</button>
+            </div>
+            
+            <div id="game-complete" class="game-complete" style="display: none;">
+                <h2>恭喜你完成了所有题目！</h2>
+                <p>你的得分: <span id="final-score">0</span></p>
+                <p id="score-message">继续努力！</p>
+                <button id="restart-btn" class="button">再玩一次</button>
             </div>
         </div>
     </div>
@@ -38,50 +53,111 @@
     <script src="../js/main.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // 游戏数据
-            const numberData = [
-                { number: 1, word: "一", options: ["一", "二", "三", "四"] },
-                { number: 2, word: "二", options: ["一", "二", "六", "八"] },
-                { number: 3, word: "三", options: ["三", "四", "七", "九"] },
-                { number: 4, word: "四", options: ["二", "四", "六", "八"] },
-                { number: 5, word: "五", options: ["三", "五", "七", "九"] },
-                { number: 6, word: "六", options: ["二", "四", "六", "八"] },
-                { number: 7, word: "七", options: ["三", "五", "七", "九"] },
-                { number: 8, word: "八", options: ["二", "四", "六", "八"] },
-                { number: 9, word: "九", options: ["一", "三", "五", "九"] },
-                { number: 10, word: "十", options: ["七", "八", "九", "十"] }
-            ];
+            // 游戏ID，用于本地存储
+            const GAME_ID = 'counting-game';
+            
+            // 游戏数据生成函数
+            function generateGameData() {
+                const data = [];
+                for (let i = 0; i < 10; i++) {
+                    // 随机生成1-10之间的苹果数量
+                    const count = Math.floor(Math.random() * 10) + 1;
+                    
+                    // 生成选项 (确保包含正确答案)
+                    let options = [];
+                    
+                    // 正确答案就是阿拉伯数字
+                    const correctAnswer = count.toString();
+                    options = [correctAnswer];
+                    
+                    // 添加三个不同的错误选项
+                    while (options.length < 4) {
+                        // 随机生成1-10之间的数字
+                        const randomNum = Math.floor(Math.random() * 10) + 1;
+                        const option = randomNum.toString();
+                        if (!options.includes(option) && option !== correctAnswer) {
+                            options.push(option);
+                        }
+                    }
+                    
+                    data.push({
+                        count: count,
+                        correctAnswer: correctAnswer,
+                        options: options
+                    });
+                }
+                return data;
+            }
             
             // 游戏变量
+            let gameData = generateGameData();
             let currentQuestion = {};
             let score = 0;
             let questionIndex = 0;
+            let highScore = parseInt(localStorage.getItem(`${GAME_ID}_highScore`) || 0);
+            let gamesPlayed = parseInt(localStorage.getItem(`${GAME_ID}_gamesPlayed`) || 0);
+            let gameCompleted = false;
+            
+            // 用于跟踪已回答的问题
+            let answeredQuestions = [];
+            let canNavigate = false;
             
             // DOM元素
-            const numberDisplay = document.getElementById('number-display');
+            const applesContainer = document.getElementById('apples-container');
             const optionsContainer = document.getElementById('options-container');
             const scoreDisplay = document.getElementById('score');
+            const highScoreDisplay = document.getElementById('high-score');
+            const gamesPlayedDisplay = document.getElementById('games-played');
+            const prevButton = document.getElementById('prev-btn');
             const nextButton = document.getElementById('next-btn');
+            const currentQuestionDisplay = document.getElementById('current-question');
+            const totalQuestionsDisplay = document.getElementById('total-questions');
+            const gameCompleteDiv = document.getElementById('game-complete');
+            const finalScoreDisplay = document.getElementById('final-score');
+            const scoreMessage = document.getElementById('score-message');
+            const restartButton = document.getElementById('restart-btn');
+            
+            // 初始化状态显示
+            highScoreDisplay.textContent = highScore;
+            gamesPlayedDisplay.textContent = gamesPlayed;
+            totalQuestionsDisplay.textContent = gameData.length;
             
             // 设置游戏
             function setupGame() {
-                // 随机排序问题
-                shuffleArray(numberData);
+                // 重置游戏状态
+                score = 0;
+                questionIndex = 0;
+                gameCompleted = false;
+                answeredQuestions = [];
+                canNavigate = false;
+                
+                // 生成新的游戏数据
+                gameData = generateGameData();
+                
+                // 更新显示
+                scoreDisplay.textContent = score;
+                currentQuestionDisplay.textContent = questionIndex + 1;
+                gameCompleteDiv.style.display = 'none';
+                
+                // 重置导航按钮
+                prevButton.disabled = true;
+                nextButton.disabled = true;
+                
                 loadQuestion();
             }
             
             // 加载问题
             function loadQuestion() {
-                if (questionIndex >= numberData.length) {
-                    // 游戏结束，重新开始
-                    questionIndex = 0;
-                    shuffleArray(numberData);
+                if (questionIndex >= gameData.length) {
+                    // 游戏结束
+                    endGame();
+                    return;
                 }
                 
-                currentQuestion = numberData[questionIndex];
+                currentQuestion = gameData[questionIndex];
                 
-                // 显示数字
-                numberDisplay.textContent = currentQuestion.number;
+                // 显示苹果
+                displayApples(currentQuestion.count);
                 
                 // 清空选项容器
                 optionsContainer.innerHTML = '';
@@ -99,13 +175,49 @@
                     optionsContainer.appendChild(button);
                 });
                 
-                // 隐藏下一题按钮
-                nextButton.style.display = 'none';
+                // 更新当前题目显示
+                currentQuestionDisplay.textContent = questionIndex + 1;
+                
+                // 处理导航按钮状态
+                updateNavigationButtons();
+            }
+            
+            // 显示指定数量的苹果
+            function displayApples(count) {
+                applesContainer.innerHTML = '';
+                
+                // 如果之前已回答过这个问题，从答案状态中恢复苹果数量
+                if (answeredQuestions[questionIndex]) {
+                    count = gameData[questionIndex].count;
+                }
+                
+                // 创建一个包含苹果的数组布局
+                const applesWrapper = document.createElement('div');
+                applesWrapper.className = 'apples-wrapper';
+                
+                for (let i = 0; i < count; i++) {
+                    const apple = document.createElement('div');
+                    apple.className = 'apple';
+                    apple.innerHTML = `
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="50" cy="62" r="38" fill="#ff5a4c"/>
+                            <path d="M50 25c0 0 -10 -20 0 -20s0 20 0 20" fill="#8b5e3c"/>
+                            <path d="M50 25c0 0 10 -15 15 -5s-15 5 -15 5" fill="#5da658"/>
+                        </svg>
+                    `;
+                    applesWrapper.appendChild(apple);
+                }
+                
+                applesContainer.appendChild(applesWrapper);
             }
             
             // 检查答案
             function checkAnswer(selectedOption) {
-                const isCorrect = selectedOption === currentQuestion.word;
+                if (answeredQuestions[questionIndex]) {
+                    return; // 如果这个问题已经回答过，不做任何处理
+                }
+                
+                const isCorrect = selectedOption === currentQuestion.correctAnswer;
                 
                 // 禁用所有选项
                 const optionButtons = document.querySelectorAll('.option');
@@ -113,12 +225,18 @@
                     button.disabled = true;
                     
                     // 标记正确和错误的选项
-                    if (button.textContent === currentQuestion.word) {
+                    if (button.textContent === currentQuestion.correctAnswer) {
                         button.classList.add('correct');
                     } else if (button.textContent === selectedOption && !isCorrect) {
                         button.classList.add('wrong');
                     }
                 });
+                
+                // 保存这个问题的答案状态
+                answeredQuestions[questionIndex] = {
+                    selectedOption: selectedOption,
+                    isCorrect: isCorrect
+                };
                 
                 // 更新分数
                 if (isCorrect) {
@@ -131,14 +249,110 @@
                     showFeedback(false);
                 }
                 
-                // 显示下一题按钮
-                nextButton.style.display = 'block';
+                // 允许导航
+                canNavigate = true;
+                updateNavigationButtons();
+                
+                // 设置自动进入下一题的延迟
+                if (questionIndex < gameData.length - 1) {
+                    setTimeout(() => {
+                        goToNextQuestion();
+                    }, 1500);
+                } else {
+                    // 如果是最后一题，延迟显示游戏结束画面
+                    setTimeout(() => {
+                        endGame();
+                    }, 1500);
+                }
             }
             
-            // 下一题
-            nextButton.addEventListener('click', () => {
-                questionIndex++;
-                loadQuestion();
+            // 前往下一题
+            function goToNextQuestion() {
+                if (questionIndex < gameData.length - 1 && canNavigate) {
+                    questionIndex++;
+                    loadQuestion();
+                    playSound('click');
+                }
+            }
+            
+            // 前往上一题
+            function goToPrevQuestion() {
+                if (questionIndex > 0 && canNavigate) {
+                    questionIndex--;
+                    loadQuestion();
+                    playSound('click');
+                    
+                    // 恢复之前的答案状态
+                    if (answeredQuestions[questionIndex]) {
+                        const answer = answeredQuestions[questionIndex];
+                        
+                        // 延迟一小段时间，确保选项已经加载
+                        setTimeout(() => {
+                            const optionButtons = document.querySelectorAll('.option');
+                            optionButtons.forEach(button => {
+                                button.disabled = true;
+                                
+                                if (button.textContent === currentQuestion.correctAnswer) {
+                                    button.classList.add('correct');
+                                } else if (button.textContent === answer.selectedOption && !answer.isCorrect) {
+                                    button.classList.add('wrong');
+                                }
+                            });
+                        }, 100);
+                    }
+                }
+            }
+            
+            // 更新导航按钮状态
+            function updateNavigationButtons() {
+                // 上一题按钮
+                prevButton.disabled = questionIndex === 0 || !canNavigate;
+                
+                // 下一题按钮
+                nextButton.disabled = questionIndex >= gameData.length - 1 || !canNavigate || !answeredQuestions[questionIndex];
+            }
+            
+            // 下一题按钮点击事件
+            nextButton.addEventListener('click', goToNextQuestion);
+            
+            // 上一题按钮点击事件
+            prevButton.addEventListener('click', goToPrevQuestion);
+            
+            // 结束游戏
+            function endGame() {
+                // 更新游戏次数
+                gamesPlayed++;
+                localStorage.setItem(`${GAME_ID}_gamesPlayed`, gamesPlayed);
+                gamesPlayedDisplay.textContent = gamesPlayed;
+                
+                // 检查是否是新的最高分
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem(`${GAME_ID}_highScore`, highScore);
+                    highScoreDisplay.textContent = highScore;
+                }
+                
+                // 显示最终得分
+                finalScoreDisplay.textContent = score;
+                
+                // 根据得分设置消息
+                if (score === gameData.length) {
+                    scoreMessage.textContent = "太棒了！你全部答对了！";
+                    playSound('complete');
+                } else if (score >= gameData.length * 0.7) {
+                    scoreMessage.textContent = "做得很好！继续努力！";
+                } else {
+                    scoreMessage.textContent = "加油，再试一次，你可以做得更好！";
+                }
+                
+                // 显示游戏结束界面
+                gameCompleteDiv.style.display = 'block';
+                gameCompleted = true;
+            }
+            
+            // 重新开始游戏
+            restartButton.addEventListener('click', () => {
+                setupGame();
                 playSound('click');
             });
             
@@ -171,19 +385,57 @@
             color: #666;
         }
         
-        .number-display {
-            font-size: 8rem;
-            font-weight: bold;
-            color: #ff7b54;
-            margin-bottom: 30px;
-            background-color: #f9f7f0;
-            width: 200px;
-            height: 200px;
-            border-radius: 50%;
+        .score-panel {
             display: flex;
-            justify-content: center;
-            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto 20px;
+        }
+        
+        .score-display {
+            background-color: #f9f7f0;
+            padding: 10px 15px;
+            border-radius: 50px;
+            margin: 5px;
+            flex: 1;
+            text-align: center;
+            font-weight: bold;
+            color: #666;
+            min-width: 140px;
+        }
+        
+        .apples-container {
+            margin-bottom: 30px;
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        .apples-wrapper {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            padding: 20px;
+            background-color: #f9f7f0;
+            border-radius: 20px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .apple {
+            width: 60px;
+            height: 60px;
+            animation: bounce 0.5s ease-in-out;
+            justify-self: center;
+        }
+        
+        @keyframes bounce {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0); }
         }
         
         .options-container {
@@ -199,24 +451,114 @@
             padding: 15px 30px;
         }
         
-        .game-controls {
+        .navigation-controls {
             display: flex;
-            justify-content: center;
-            margin-top: 30px;
+            justify-content: space-between;
+            align-items: center;
+            margin: 30px auto 0;
+            width: 90%;
+            max-width: 500px;
+            background-color: #f2f2f2;
+            border-radius: 50px;
+            padding: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
         
-        #next-btn {
-            display: none;
+        .nav-button {
+            background-color: #dddddd;
+            color: #666;
+            font-size: 1.2rem;
+            padding: 10px 20px;
+            min-width: 90px;
+            border-radius: 50px;
+            border: none;
+            transition: background-color 0.3s;
+        }
+        
+        .nav-button:not(:disabled):hover {
+            background-color: #ff7b54;
+            color: white;
+        }
+        
+        .nav-button:disabled {
+            background-color: #dddddd;
+            color: #999;
+            cursor: not-allowed;
+        }
+        
+        .question-indicator {
+            font-weight: bold;
+            color: #666;
+            font-size: 1.1rem;
+            text-align: center;
+            flex-grow: 1;
+        }
+        
+        .game-complete {
+            background-color: #f9f7f0;
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .game-complete h2 {
+            color: #ff7b54;
+            margin-bottom: 20px;
+        }
+        
+        #restart-btn {
             background-color: #ff7b54;
             font-size: 1.2rem;
             padding: 12px 30px;
+            margin-top: 20px;
+        }
+        
+        #final-score {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ff7b54;
         }
         
         @media (max-width: 768px) {
-            .number-display {
-                font-size: 6rem;
-                width: 150px;
-                height: 150px;
+            .apple {
+                width: 45px;
+                height: 45px;
+            }
+            
+            .apples-wrapper {
+                gap: 10px;
+                padding: 15px;
+            }
+            
+            .score-panel {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .score-display {
+                margin-bottom: 10px;
+                width: 100%;
+            }
+            
+            .navigation-controls {
+                width: 95%;
+                padding: 3px;
+                flex-wrap: nowrap;
+            }
+            
+            .nav-button {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+                min-width: 80px;
+            }
+            
+            .question-indicator {
+                font-size: 0.9rem;
+                width: auto;
+                margin-bottom: 0;
+                order: 0;
             }
             
             .options-container {

@@ -16,29 +16,50 @@
         
         <main class="game-grid">
             <a href="games/number-recognition.html" class="game-card">
-                <div class="game-icon">🔢</div>
-                <h2>认识数字</h2>
-                <p>认识1-20的数字，培养数字感知能力</p>
+                <div class="game-icon">🍎</div>
+                <h2>数数</h2>
+                <p>数一数有多少个苹果，然后选择正确的数量</p>
+                <div class="score-badge">最高分: <span class="high-score" data-game="number-recognition">0</span></div>
             </a>
             
             <a href="games/simple-math.html" class="game-card">
                 <div class="game-icon">➕</div>
                 <h2>趣味加减法</h2>
                 <p>通过有趣的游戏学习简单的加减法</p>
+                <div class="score-badge">最高分: <span class="high-score" data-game="simple-math">0</span></div>
             </a>
             
             <a href="games/shape-match.html" class="game-card">
                 <div class="game-icon">🔷</div>
                 <h2>形状匹配</h2>
                 <p>匹配相同的形状，锻炼观察力和专注力</p>
+                <div class="score-badge">最高分: <span class="high-score" data-game="shape-match">0</span></div>
             </a>
             
             <a href="games/memory-game.html" class="game-card">
                 <div class="game-icon">🧠</div>
                 <h2>记忆翻牌</h2>
                 <p>找出配对的卡片，提高记忆力和集中力</p>
+                <div class="score-badge">最高分: <span class="high-score" data-game="memory-game">0</span></div>
             </a>
         </main>
+        
+        <section class="scoreboard">
+            <h2>我的成就</h2>
+            <div class="total-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="total-games">0</div>
+                    <div class="stat-label">游戏次数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="total-points">0</div>
+                    <div class="stat-label">总得分</div>
+                </div>
+                <div class="stat-item">
+                    <button id="reset-stats" class="button">重置数据</button>
+                </div>
+            </div>
+        </section>
         
         <footer>
             <p>专为孩子设计的学习乐园 © 2023</p>
@@ -46,5 +67,110 @@
     </div>
 
     <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载并显示所有游戏的最高分
+            const gameIds = ['number-recognition', 'simple-math', 'shape-match', 'memory-game'];
+            
+            // 更新游戏卡片上的最高分
+            const highScoreElements = document.querySelectorAll('.high-score');
+            highScoreElements.forEach(element => {
+                const gameId = element.dataset.game;
+                const highScore = localStorage.getItem(`${gameId}_highScore`) || 0;
+                element.textContent = highScore;
+            });
+            
+            // 计算总游戏次数和总得分
+            let totalGames = 0;
+            let totalPoints = 0;
+            
+            gameIds.forEach(gameId => {
+                const gamesPlayed = parseInt(localStorage.getItem(`${gameId}_gamesPlayed`) || 0);
+                const points = parseInt(localStorage.getItem(`${gameId}_highScore`) || 0);
+                
+                totalGames += gamesPlayed;
+                totalPoints += points;
+            });
+            
+            // 更新总统计数据
+            document.getElementById('total-games').textContent = totalGames;
+            document.getElementById('total-points').textContent = totalPoints;
+            
+            // 重置按钮
+            document.getElementById('reset-stats').addEventListener('click', function() {
+                if (confirm('确定要重置所有游戏数据吗？这将清除你的所有得分记录。')) {
+                    gameIds.forEach(gameId => {
+                        localStorage.removeItem(`${gameId}_highScore`);
+                        localStorage.removeItem(`${gameId}_gamesPlayed`);
+                    });
+                    
+                    // 重置显示
+                    highScoreElements.forEach(el => el.textContent = '0');
+                    document.getElementById('total-games').textContent = '0';
+                    document.getElementById('total-points').textContent = '0';
+                    
+                    alert('游戏数据已重置！');
+                }
+            });
+        });
+    </script>
+    
+    <style>
+        .score-badge {
+            background-color: #ffb26b;
+            color: white;
+            border-radius: 20px;
+            padding: 5px 10px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            display: inline-block;
+        }
+        
+        .scoreboard {
+            background-color: #fff;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .scoreboard h2 {
+            color: #ff7b54;
+            margin-bottom: 20px;
+        }
+        
+        .total-stats {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            padding: 15px;
+            flex: 1;
+            min-width: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #ff7b54;
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        #reset-stats {
+            margin-top: 10px;
+            background-color: #ff7b54;
+        }
+    </style>
 </body>
 </html> 

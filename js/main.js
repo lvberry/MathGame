@@ -63,7 +63,50 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.removeChild(feedback);
         }, 1000);
     };
-    
+
+    // 存储游戏得分
+    window.saveGameScore = function(gameId, score) {
+        const highScore = parseInt(localStorage.getItem(`${gameId}_highScore`) || 0);
+        
+        if (score > highScore) {
+            localStorage.setItem(`${gameId}_highScore`, score);
+            return true; // 表示创造了新纪录
+        }
+        
+        return false; // 没有创造新纪录
+    };
+
+    // 获取游戏最高分
+    window.getGameHighScore = function(gameId) {
+        return parseInt(localStorage.getItem(`${gameId}_highScore`) || 0);
+    };
+
+    // 记录游戏次数
+    window.recordGamePlayed = function(gameId) {
+        const gamesPlayed = parseInt(localStorage.getItem(`${gameId}_gamesPlayed`) || 0);
+        localStorage.setItem(`${gameId}_gamesPlayed`, gamesPlayed + 1);
+        return gamesPlayed + 1;
+    };
+
+    // 获取游戏次数
+    window.getGamesPlayed = function(gameId) {
+        return parseInt(localStorage.getItem(`${gameId}_gamesPlayed`) || 0);
+    };
+
+    // 重置游戏数据
+    window.resetGameData = function(gameId) {
+        localStorage.removeItem(`${gameId}_highScore`);
+        localStorage.removeItem(`${gameId}_gamesPlayed`);
+    };
+
+    // 获取游戏统计信息
+    window.getGameStats = function(gameId) {
+        return {
+            highScore: getGameHighScore(gameId),
+            gamesPlayed: getGamesPlayed(gameId)
+        };
+    };
+
     // 初始化
     addSoundEffects();
 }); 
